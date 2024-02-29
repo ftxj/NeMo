@@ -305,6 +305,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
 
         if self.use_loss_mask and self.transformer_config.sequence_parallel:
             raise ValueError('Loss mask is not supported with sequence parallelism.')
+        self.debug_run_times = 0
 
     def set_inference_config(self, inference_config):
         self._inference_config = inference_config
@@ -494,6 +495,19 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
         return output_tensor
 
     def fwd_bwd_step(self, dataloader_iter, batch_idx, forward_only, first_val_step=None):
+        print("fwd_bwd_step step ")
+        torch.cuda.nvtx.range_push("fwd_bwd_step")
+        if self.debug_run_times == 1:
+            import ctypes
+            _cudart = ctypes.CDLL('libcudart.so')
+            ret = _cudart.cudaProfilerStart()
+
+        if self.debug_run_times == 5:
+            import ctypes
+            _cudart = ctypes.CDLL('libcudart.so')
+            ret = _cudart.cudaProfilerStop()
+
+        self.debug_run_times = self.debug_run_times + 1
 
         # handle asynchronous grad reduction
         no_sync_func = None
@@ -552,6 +566,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
                 loss_mean = []
             else:
                 loss_mean = torch.tensor(0.0).cuda()
+        torch.cuda.nvtx.range_pop()
 
         return loss_mean
 
@@ -581,6 +596,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
             The input batch to each micro-batch is fetched using the dataloader function
             in the micro-batch fwd function.
         """
+        print("training step ")
         # Initialize userbuffer communicators.
         if self.initialize_ub:
             self.initialize_ub_func()
@@ -1043,6 +1059,26 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
                 rank_in_dp_tp_group = torch.distributed.get_rank() % (dp_size * tp_size)
                 last_pipeline_stage_offset = (tp_size * dp_size) * (pp_size - 1)
                 self.loss_broadcast_src_rank = last_pipeline_stage_offset + rank_in_dp_tp_group
+
+                # tp_rank + pp_rank * tp_size + dp_rank * tp_size * pp_size = rank
+
+                # TP PP DP
+                g_rank = torch.distributed.get_rank()
+                tp_rank = g_rank % tp_size
+                pp_rank = ((g_rank - tp_rank) // tp_size) % pp_size
+                dp_rank = (g_rank - tp_rank - pp_rank * tp_size) // (tp_size * pp_size)
+                # 3, 1, 1, 0
+                # 2, 0, 1, 0
+                dp_offset = dp_rank * tp_size * pp_size
+
+                self.loss_broadcast_src_rank = dp_offset + tp_size * (pp_size - 1) + tp_rank
+
+                print("g_rank = {}, tp_rank = {}, pp_rank = {}, dp_rank = {}".format(g_rank, tp_rank, pp_rank, dp_rank))
+                
+
+            ftxj_global_rank = torch.distributed.get_rank()
+            print("comm broadcast GRank = {}, [{}] -> [{}]".format(ftxj_global_rank, self.loss_broadcast_src_rank, torch.distributed.get_process_group_ranks(parallel_state.get_pipeline_model_parallel_group())), flush=True)
+
             torch.distributed.broadcast(
                 averaged_loss, self.loss_broadcast_src_rank, group=parallel_state.get_pipeline_model_parallel_group(),
             )
@@ -1181,6 +1217,9 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
 
         if self.rampup_batch_size:
             optimizer = self.cfg.optim.get('name', None)
+            print(optimizer)
+            exit()
+
             assert (
                 optimizer == 'fused_adam'
             ), f'{optimizer} optimizer is not supported yet with rampup batch size. Please, use fused_adam optimizer instead.'

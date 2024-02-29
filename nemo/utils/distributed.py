@@ -27,6 +27,8 @@ except (ImportError, ModuleNotFoundError):
 
 
 def initialize_distributed(args, backend='nccl'):
+    print("run nemo initailize distributed")
+    exit()
     """Initialize torch.distributed."""
     # Get local rank in case it is provided.
     local_rank = args.local_rank

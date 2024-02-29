@@ -106,6 +106,8 @@ def initialize_model_parallel_for_nemo(
     set_tensor_model_parallel_rank(app_state.tensor_model_parallel_rank)
 
     set_pipeline_model_parallel_rank(app_state.pipeline_model_parallel_rank)
+    print("Global Rank = {} set PP Rank = {}, TP Rank = {}".format(global_rank, app_state.pipeline_model_parallel_rank, app_state.tensor_model_parallel_rank))
+
     if HAVE_INTERLEAVED:
         set_virtual_pipeline_model_parallel_world_size(app_state.virtual_pipeline_model_parallel_size)
     set_virtual_pipeline_model_parallel_rank(app_state.virtual_pipeline_model_parallel_rank)
@@ -231,11 +233,14 @@ def fake_initialize_model_parallel(
             all_data_parallel_group_ranks.append(list(ranks))
             if rank in ranks:
                 data_parallel_group = list(ranks)
-                logging.info(f'Rank {rank} has data parallel group: {data_parallel_group}')
+                # logging.info(f'Rank {rank} has data parallel group: {data_parallel_group}')
 
     data_parallel_rank = data_parallel_group.index(rank)
-    logging.info(f'All data parallel group ranks: {all_data_parallel_group_ranks}')
-    logging.info(f'Ranks {rank} has data parallel rank: {data_parallel_rank}')
+    # PP
+    print(f'All data parallel group ranks: {all_data_parallel_group_ranks}, Ranks {rank} has data parallel rank: {data_parallel_rank}')
+
+    # logging.info(f'All data parallel group ranks: {all_data_parallel_group_ranks}')
+    # logging.info(f'Ranks {rank} has data parallel rank: {data_parallel_rank}')
 
     # Build the model-parallel groups.
     all_model_parallel_group_ranks = []
@@ -243,8 +248,10 @@ def fake_initialize_model_parallel(
         ranks = [data_parallel_group_ranks[i] for data_parallel_group_ranks in all_data_parallel_group_ranks]
         all_model_parallel_group_ranks.append(ranks)
         if rank in ranks:
-            logging.info(f'Rank {rank} has model parallel group: {list(ranks)}')
-    logging.info(f'All model parallel group ranks: {all_model_parallel_group_ranks}')
+            print(f'Rank {rank} has model parallel group: {list(ranks)}')
+            # logging.info(f'Rank {rank} has model parallel group: {list(ranks)}')
+    # TP + DP
+    # logging.info(f'All model parallel group ranks: {all_model_parallel_group_ranks}')
 
     # Build the tensor model-parallel groups.
     all_tensor_model_parallel_group_ranks = []
@@ -254,12 +261,13 @@ def fake_initialize_model_parallel(
         all_tensor_model_parallel_group_ranks.append(list(ranks))
         if rank in ranks:
             tensor_model_parallel_group = list(ranks)
-            logging.info(f'Rank {rank} has tensor model parallel group: {tensor_model_parallel_group}')
+            print(f'Rank {rank} has tensor model parallel group: {tensor_model_parallel_group}')
+            # logging.info(f'Rank {rank} has tensor model parallel group: {tensor_model_parallel_group}')
 
     tensor_model_parallel_rank = tensor_model_parallel_group.index(rank)
-
-    logging.info(f'All tensor model parallel group ranks: {all_tensor_model_parallel_group_ranks}')
-    logging.info(f'Rank {rank} has tensor model parallel rank: {tensor_model_parallel_rank}')
+    print(f'All tensor model parallel group ranks: {all_tensor_model_parallel_group_ranks}, Rank {rank} has tensor model parallel rank: {tensor_model_parallel_rank}')
+    # logging.info(f'All tensor model parallel group ranks: {all_tensor_model_parallel_group_ranks}')
+    # logging.info(f'Rank {rank} has tensor model parallel rank: {tensor_model_parallel_rank}')
 
     # Build the pipeline model-parallel groups and embedding groups
     # (first and last rank in each pipeline model-parallel group).
@@ -273,7 +281,7 @@ def fake_initialize_model_parallel(
         all_pipeline_model_parallel_group_ranks.append(list(ranks))
         if rank in ranks:
             pipeline_model_parallel_group = list(ranks)
-            logging.info(f'Rank {rank} has pipeline model parallel group: {pipeline_model_parallel_group}')
+            # logging.info(f'Rank {rank} has pipeline model parallel group: {pipeline_model_parallel_group}')
 
         # Setup embedding group (to exchange gradients between
         # first and last stages).
@@ -285,16 +293,47 @@ def fake_initialize_model_parallel(
             all_embedding_group_ranks.append(list(embedding_ranks))
         if rank in embedding_ranks:
             embedding_group = list(embedding_ranks)
-            logging.info(f'Rank {rank} has embedding group: {embedding_group}')
+            # logging.info(f'Rank {rank} has embedding group: {embedding_group}')
 
     pipeline_model_parallel_rank = pipeline_model_parallel_group.index(rank)
     if embedding_group is not None:
         embedding_rank = embedding_group.index(rank)
 
-    logging.info(f'All pipeline model parallel group ranks: {all_pipeline_model_parallel_group_ranks}')
-    logging.info(f'Rank {rank} has pipeline model parallel rank {pipeline_model_parallel_rank}')
-    logging.info(f'All embedding group ranks: {all_pipeline_model_parallel_group_ranks}')
-    logging.info(f'Rank {rank} has embedding rank: {embedding_rank}')
+    print(f'All pipeline model parallel group ranks: {all_pipeline_model_parallel_group_ranks}, Rank {rank} has pipeline model parallel rank {pipeline_model_parallel_rank}')
+
+    # logging.info(f'All pipeline model parallel group ranks: {all_pipeline_model_parallel_group_ranks}')
+    # logging.info(f'Rank {rank} has pipeline model parallel rank {pipeline_model_parallel_rank}')
+    # logging.info(f'All embedding group ranks: {all_pipeline_model_parallel_group_ranks}')
+    # logging.info(f'Rank {rank} has embedding rank: {embedding_rank}')
+
+    print("Rank {} has pipeline rank {}, model rank {}, data rank {}. ".format(
+        rank,
+        data_parallel_rank,
+        tensor_model_parallel_rank,
+        pipeline_model_parallel_rank)
+    )
+    print("some constant = {}, {}, {}, {}".format(model_parallel_size, data_parallel_size, pipeline_model_parallel_split_rank_, virtual_pipeline_model_parallel_rank))
+    # [[0, 4], [1, 5], [2, 6], [3, 7]] DP
+    # 0, 1, 2, 3
+    # 4, 5, 6, 7
+
+    # [[0, 1], [2, 3], [4, 5], [6, 7]] TP
+    # [[0, 2], [1, 3], [4, 6], [5, 7]] PP
+
+    # 0, 1, 0, 1
+    # 2, 3, 2, 3
+    
+    # 0, 1, 4, 5
+    # 2, 3, 6, 7
+
+    return (
+        tensor_model_parallel_rank,
+        data_parallel_rank,
+        model_parallel_size,
+        data_parallel_size,
+        pipeline_model_parallel_split_rank_,
+        virtual_pipeline_model_parallel_rank,
+    )
 
     return (
         tensor_model_parallel_rank,

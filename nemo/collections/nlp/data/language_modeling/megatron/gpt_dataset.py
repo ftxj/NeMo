@@ -279,6 +279,7 @@ def _build_train_valid_test_datasets(
 def get_indexed_dataset_(data_prefix, data_impl, skip_warmup, delay_data_mmap=False):
     """Build indexed dataset."""
     logging.info(' > building dataset index ...')
+    print(data_prefix, data_impl, skip_warmup, delay_data_mmap)
 
     start_time = time.time()
     indexed_dataset = make_indexed_dataset(data_prefix, data_impl, skip_warmup, delay_data_mmap=delay_data_mmap)

@@ -110,7 +110,10 @@ def init_model_parallel(sharp: bool, nccl_communicator_config_path: str = None) 
         sharp: Apply SHARP to NCCL data-parallel communication.
         nccl_communicator_config_path: Path to the yaml NCCL communication process group config file.
     """
+    print_rank = torch.distributed.get_rank()
     app_state = AppState()
+    if print_rank == 2:
+        print("1 app state = ", app_state.pipeline_model_parallel_rank, "pstate = ", parallel_state.get_pipeline_model_parallel_rank(), flush=True)
 
     # we initialize megatron-lm model parallel and data parallel groups
     # after initializing DDP with PTL.
@@ -119,6 +122,8 @@ def init_model_parallel(sharp: bool, nccl_communicator_config_path: str = None) 
         # this happens with multiple calls to trainer.test for example
         parallel_state.destroy_model_parallel()
         if torch.distributed.is_initialized():
+            if print_rank == 2:
+                print("2 app state = ", app_state.pipeline_model_parallel_rank, "pstate = ", parallel_state.get_pipeline_model_parallel_rank(), flush=True)
             parallel_state.initialize_model_parallel(
                 tensor_model_parallel_size=app_state.tensor_model_parallel_size,
                 pipeline_model_parallel_size=app_state.pipeline_model_parallel_size,
@@ -127,8 +132,10 @@ def init_model_parallel(sharp: bool, nccl_communicator_config_path: str = None) 
                 nccl_communicator_config_path=nccl_communicator_config_path,
                 use_sharp=sharp,
             )
-
+            if print_rank == 2:
+                print("3 app state = ", app_state.pipeline_model_parallel_rank, "pstate = ", parallel_state.get_pipeline_model_parallel_rank(), flush=True)
             # assert that fake tp and pp rank match after model parallel init
+
             assert app_state.tensor_model_parallel_rank == parallel_state.get_tensor_model_parallel_rank()
             assert app_state.pipeline_model_parallel_rank == parallel_state.get_pipeline_model_parallel_rank()
 
