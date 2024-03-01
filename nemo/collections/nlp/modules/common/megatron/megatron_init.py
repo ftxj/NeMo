@@ -75,6 +75,15 @@ def initialize_model_parallel_for_nemo(
     if virtual_pipeline_model_parallel_size is not None and not HAVE_INTERLEAVED:
         raise ValueError("set_virtual_pipeline_model_parallel_world_size is needed in megatron-core for interleaved.")
 
+    data_parallel_size: int = world_size // (
+        tensor_model_parallel_size * pipeline_model_parallel_size
+    )
+
+    tmp = pipeline_model_parallel_size
+    pipeline_model_parallel_size = data_parallel_size
+    data_parallel_size = tmp
+    print("pipeline_model_parallel_size = ", pipeline_model_parallel_size)
+
     # updating NeMo globals
     app_state = AppState()
     app_state.global_rank = global_rank

@@ -936,6 +936,9 @@ class MegatronBaseModel(NLPModel):
                     if is_mcore_model
                     else model.word_embeddings_weight()
                 )
+                print("parallel_state = ", parallel_state.get_pipeline_model_parallel_rank())
+
+                print("word_embeddings_weight = ", is_mcore_model, word_embeddings_weight)
                 # substract the embedding weights on the last stage
                 num_word_embedding_parameters = sum([p.nelement() for p in word_embeddings_weight])
                 num_parameters_on_device -= num_word_embedding_parameters
