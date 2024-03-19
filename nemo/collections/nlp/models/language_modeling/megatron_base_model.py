@@ -256,6 +256,7 @@ class MegatronBaseModel(NLPModel):
                     continue
                 if hasattr(child, "set_tensor_parallel_group"):
                     tp_group = parallel_state.get_tensor_model_parallel_group()
+                    # todo(jxin)
                     child.set_tensor_parallel_group(tp_group)
 
     def setup_transformer_engine_cp_groups(self):

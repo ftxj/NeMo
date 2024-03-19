@@ -479,6 +479,7 @@ class MegatronNMTModel(MegatronLMEncoderDecoderModel, Exportable):
                 # Deduplicate sentences that may have been distributed across multiple data parallel ranks.
                 gt_inp_set = set()
                 for rank in range(0, parallel_state.get_data_parallel_world_size()):
+                    # todo(jxin)
                     for t, g, i in tr_gt_inp[rank]:
                         if g + i not in gt_inp_set:
                             gt_inp_set.add(g + i)

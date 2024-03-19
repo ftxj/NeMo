@@ -803,6 +803,7 @@ class CoreAttention(MegatronModule):
         projection_size = kv_channels * num_attention_heads
 
         # Per attention head and per partition values.
+        # todo(jxin)
         world_size = parallel_state.get_tensor_model_parallel_world_size()
         self.hidden_size_per_partition = safe_divide(projection_size, world_size)
         self.hidden_size_per_attention_head = safe_divide(projection_size, num_attention_heads)
