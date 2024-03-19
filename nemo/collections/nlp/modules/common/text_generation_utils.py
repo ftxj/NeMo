@@ -343,6 +343,7 @@ def get_model_parallel_src_rank():
     all_ranks = np.arange(world_size)
     tp_size = parallel_state.get_tensor_model_parallel_world_size()
     pp_size = parallel_state.get_pipeline_model_parallel_world_size()
+    # todo(jxin)
     # [pipeline dim, data parallel, tensor dim]
     all_ranks = all_ranks.reshape(pp_size, -1, tp_size)
     dp_rank = parallel_state.get_data_parallel_rank()

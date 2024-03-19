@@ -76,6 +76,7 @@ def build_model(
         model = []
         parallel_state.set_virtual_pipeline_model_parallel_world_size(virtual_pipeline_model_parallel_size)
         for i in range(virtual_pipeline_model_parallel_size):
+            # todo(jxin)
             parallel_state.set_virtual_pipeline_model_parallel_rank(i)
             model.append(
                 model_provider_func(
