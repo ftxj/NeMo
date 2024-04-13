@@ -14,8 +14,8 @@
 
 import pytest
 
+from megatron.core.parallel_state import RankGenerator
 from nemo.collections.nlp.modules.common.megatron.megatron_init import fake_initialize_model_parallel
-
 
 def old_fake_initialize_model_parallel(
     world_size,
